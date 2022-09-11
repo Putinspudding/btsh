@@ -127,29 +127,35 @@ func executePipe(cmds ...string) {
 
 func executePipe2(cmds ...string) {
 	var cmdline *exec.Cmd
+	var bufferIn bytes.Buffer
 	var bufferOut bytes.Buffer
 	for i, cmd := range cmds {
 		switch i {
 		case 0:
 			cmd := split(cmd, " ")
 			cmdline = exec.Command(cmd[0], cmd[1:]...)
-			cmdline.Stdout = &bufferOut
+			cmdline.Stdout = &bufferIn
 			cmdline.Start()
 			cmdline.Wait()
 		default:
 			cmd := split(cmd, " ")
 			cmdline = exec.Command(cmd[0], cmd[1:]...)
-			cmdline.Stdin = &bufferOut
-			cmdline.Wait()
+			cmdline.Stdin = &bufferIn
+
 			cmdline.Stdout = &bufferOut
 			if err := cmdline.Start(); err != nil {
 				fmt.Printf("Start Error:%s\n", err)
 				return
 			}
-			cmdline.Wait()
+			if err := cmdline.Wait(); err != nil {
+				fmt.Printf("Wait2 Error:%s\n", err)
+				return
+			}
+			bufferIn.Write(bufferOut.Bytes())
 		}
+		bufferOut.Reset()
 	}
-	io.Copy(os.Stdout, &bufferOut)
+	io.Copy(os.Stdout, &bufferIn)
 
 }
 
