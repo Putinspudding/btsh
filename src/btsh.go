@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -42,7 +43,7 @@ func init_loop() {
 		switch {
 		case strings.Contains(cmd, "|"):
 			cmds := split(cmd, "|")
-			executePipe(cmds...)
+			executePipe2(cmds...)
 			//fmt.Println(singlecmd)
 		default:
 			params := split(cmd, " ")
@@ -122,6 +123,34 @@ func executePipe(cmds ...string) {
 		fmt.Printf("Error:%s", err)
 	}
 	fmt.Printf("%s", outputBuf1.Bytes())
+}
+
+func executePipe2(cmds ...string) {
+	var cmdline *exec.Cmd
+	var bufferOut bytes.Buffer
+	for i, cmd := range cmds {
+		switch i {
+		case 0:
+			cmd := split(cmd, " ")
+			cmdline = exec.Command(cmd[0], cmd[1:]...)
+			cmdline.Stdout = &bufferOut
+			cmdline.Start()
+			cmdline.Wait()
+		default:
+			cmd := split(cmd, " ")
+			cmdline = exec.Command(cmd[0], cmd[1:]...)
+			cmdline.Stdin = &bufferOut
+			cmdline.Wait()
+			cmdline.Stdout = &bufferOut
+			if err := cmdline.Start(); err != nil {
+				fmt.Printf("Start Error:%s\n", err)
+				return
+			}
+			cmdline.Wait()
+		}
+	}
+	io.Copy(os.Stdout, &bufferOut)
+
 }
 
 func split(input string, separator string) []string {
